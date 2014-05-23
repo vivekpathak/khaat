@@ -8,6 +8,7 @@ import play.api.libs.iteratee.Enumerator
 import java.net.URL 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 // https://github.com/rm-hull/kebab/blob/master/app/Proxy.scala
 // http://localhost:9000/
@@ -22,13 +23,13 @@ object Application extends Controller {
 
   def proxy = Action.async {
     request =>  
-      val proxyUrl = urlToProxy(request.uri) 
+      val proxyUrl = urlToProxy(request.uri)
       val response: Future[Response] = WS.url(proxyUrl).execute(request.method)
       response.map { 
           case response: Response => getStream(response) 
           case _ => RequestTimeout("Timed out")  
         }
-      /*
+      
       val dataFuture = getStream(response)
       val timeoutFuture = play.api.libs.concurrent.Promise.timeout("Oops", 1.second)
       Future.firstCompletedOf(Seq(dataFuture, timeoutFuture)).map {
@@ -36,24 +37,23 @@ object Application extends Controller {
         case t: String => InternalServerError(t)
       }
 
-     //  val data = response.ahcResponse.getResponseBodyAsStream
-     //  val dataContent: Enumerator[Array[Byte]] = Enumerator.fromStream(data)
-     //  Ok.chunked(dataContent)    
-      //Ok.stream(rawData(request.uri))
-      //Ok(views.html.index("Your new application is ready."))
-      */
+       val data = response.ahcResponse.getResponseBodyAsStream
+       val dataContent: Enumerator[Array[Byte]] = Enumerator.fromStream(data)
+       Ok.chunked(dataContent)    
+       Ok.stream(rawData(request.uri))
+       Ok(views.html.index("Your new application is ready."))
+      
       }
 
 
   private def urlToProxy(url : String): String = {
     var u = new URL(url)
-    //u.set( u.getProtocol, u.getHost, 5984, u.getAuthority, u.getUserInfo, u.getPath, u.getQuery, u.getRef) ;
     var newUrl = new URL(u.getProtocol,u.getHost,5984,u.getFile )
     newUrl.toString() ; 
   } 
 
 
-  private def getStream(response : Response) = {
+  private def getStream(response: Response) = {
     val data = response.ahcResponse.getResponseBodyAsStream
     val dataContent: Enumerator[Array[Byte]] = Enumerator.fromStream(data)
     Status(response.status)
