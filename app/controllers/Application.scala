@@ -7,7 +7,7 @@ import play.api.libs.ws.Response
 import play.api.libs.iteratee.Enumerator
 import java.net.URL 
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
-
+import scala.concurrent.Future
 
 // https://github.com/rm-hull/kebab/blob/master/app/Proxy.scala
 // http://localhost:9000/
@@ -23,13 +23,11 @@ object Application extends Controller {
   def proxy = Action.async {
     request =>  
       val proxyUrl = urlToProxy(request.uri) 
-      val response = WS.url(proxyUrl).execute(request.method) 
-      Async { 
-        response.map { 
-          case response : Response => getStream(response) 
+      val response: Future[Response] = WS.url(proxyUrl).execute(request.method)
+      response.map { 
+          case response: Response => getStream(response) 
           case _ => RequestTimeout("Timed out")  
         }
-      }  
       /*
       val dataFuture = getStream(response)
       val timeoutFuture = play.api.libs.concurrent.Promise.timeout("Oops", 1.second)
@@ -44,13 +42,14 @@ object Application extends Controller {
       //Ok.stream(rawData(request.uri))
       //Ok(views.html.index("Your new application is ready."))
       */
-  }
+      }
 
 
-  private def urlToProxy(url : String) : String = {
-    var u = new URL(url) 
-    u.set( u.getProtocol, u.getHost, 5984, u.getAuthority, u.getUserInfo, u.getPath, u.getQuery, u.getRef) ;
-    u.toString() ; 
+  private def urlToProxy(url : String): String = {
+    var u = new URL(url)
+    //u.set( u.getProtocol, u.getHost, 5984, u.getAuthority, u.getUserInfo, u.getPath, u.getQuery, u.getRef) ;
+    var newUrl = new URL(u.getProtocol,u.getHost,5984,u.getFile )
+    newUrl.toString() ; 
   } 
 
 
